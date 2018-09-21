@@ -20,7 +20,7 @@ using System.Collections.Generic;
 
 public class vp_FPController : vp_CharacterController
 {
-	
+
 	// general
 	protected Vector3 m_FixedPosition = Vector3.zero;		// exact position. updates at a fixed interval and is used for gameplay
 	protected Vector3 m_SmoothPosition = Vector3.zero;		// smooth position. updates as often as possible and is only used for the camera
@@ -164,7 +164,6 @@ public class vp_FPController : vp_CharacterController
 			}
 
 		}
-
 	}
 
 
