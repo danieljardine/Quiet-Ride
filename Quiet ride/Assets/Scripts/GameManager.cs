@@ -9,10 +9,11 @@ public class GameManager : MonoBehaviour {
     public float DoorDistance = 1.5f, fadeSpeed;
 
     public Image introScreen;
+    vp_Input control;
 
     // Use this for initialization
     void Start () {
-		
+       control = gameObject.GetComponent<vp_Input>();
 	}
 	
 	// Update is called once per frame
@@ -45,6 +46,8 @@ public class GameManager : MonoBehaviour {
             Debug.Log("Engine start");
             yield return new WaitForSeconds(0.5f);
             SceneManager.LoadScene("DriveIn");
+
+            transform.position = new Vector3(1.551f, 1.5f, -1.565f);
             yield break;
         }
     }

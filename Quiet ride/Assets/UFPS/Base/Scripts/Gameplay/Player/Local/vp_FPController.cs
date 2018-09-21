@@ -27,6 +27,7 @@ public class vp_FPController : vp_CharacterController
 	public Vector3 SmoothPosition { get { return m_SmoothPosition; } }	// a version of the controller position calculated in 'Update' to get smooth camera motion
 	public Vector3 Velocity { get { return CharacterController.velocity; } }
 	protected bool m_IsFirstPerson = true;
+    public bool movement;
 
 	// collision
 	public bool HeadContact { get { return m_HeadContact; } }
@@ -551,84 +552,89 @@ public class vp_FPController : vp_CharacterController
 	/// </summary>
 	protected override void FixedMove()
 	{
+        if (movement == true)
+        {
+            // --- apply forces ---
+            m_MoveDirection = Vector3.zero;
+            m_MoveDirection += m_ExternalForce;
+            m_MoveDirection += m_MotorThrottle;
+            m_MoveDirection.y += m_FallSpeed;
 
-		// --- apply forces ---
-		m_MoveDirection = Vector3.zero;
-		m_MoveDirection += m_ExternalForce;
-		m_MoveDirection += m_MotorThrottle;
-		m_MoveDirection.y += m_FallSpeed;
+            // --- apply anti-bump offset ---
+            // this pushes the controller towards the ground to prevent the character
+            // from "bumpety-bumping" when walking down slopes or stairs. the strength
+            // of this effect is determined by the character controller's 'Step Offset'
+            m_CurrentAntiBumpOffset = 0.0f;
+            if (m_Grounded && m_MotorThrottle.y <= 0.001f)
+            {
+                m_CurrentAntiBumpOffset = Mathf.Max(Player.StepOffset.Get(), Vector3.Scale(m_MoveDirection, (Vector3.one - Vector3.up)).magnitude);
+                m_MoveDirection += m_CurrentAntiBumpOffset * Vector3.down;
+            }
 
-		// --- apply anti-bump offset ---
-		// this pushes the controller towards the ground to prevent the character
-		// from "bumpety-bumping" when walking down slopes or stairs. the strength
-		// of this effect is determined by the character controller's 'Step Offset'
-		m_CurrentAntiBumpOffset = 0.0f;
-		if (m_Grounded && m_MotorThrottle.y <= 0.001f)
-		{
-			m_CurrentAntiBumpOffset = Mathf.Max(Player.StepOffset.Get(), Vector3.Scale(m_MoveDirection, (Vector3.one - Vector3.up)).magnitude);
-			m_MoveDirection += m_CurrentAntiBumpOffset * Vector3.down;
-		}
+            // --- predict move result ---
+            // do some prediction in order to detect blocking and deflect forces on collision
+            m_PredictedPos = Transform.position + vp_MathUtility.NaNSafeVector3(m_MoveDirection * Delta * Time.timeScale);
 
-		// --- predict move result ---
-		// do some prediction in order to detect blocking and deflect forces on collision
-		m_PredictedPos = Transform.position + vp_MathUtility.NaNSafeVector3(m_MoveDirection * Delta * Time.timeScale);
+            // --- move the charactercontroller ---
 
-		// --- move the charactercontroller ---
+            // ride along with movable objects
+            if (m_Platform != null && PositionOnPlatform != Vector3.zero)
+                Player.Move.Send(vp_MathUtility.NaNSafeVector3(m_Platform.TransformPoint(PositionOnPlatform) -
+                                                                        m_Transform.position));
 
-		// ride along with movable objects
-		if (m_Platform != null && PositionOnPlatform != Vector3.zero)
-				Player.Move.Send(vp_MathUtility.NaNSafeVector3(m_Platform.TransformPoint(PositionOnPlatform) -
-																		m_Transform.position));
+            // move on our own
+            Player.Move.Send(vp_MathUtility.NaNSafeVector3(m_MoveDirection * Delta * Time.timeScale));
 
-        // move on our own
-		Player.Move.Send(vp_MathUtility.NaNSafeVector3(m_MoveDirection * Delta * Time.timeScale));
+            // while there is an active death event, block movement input
+            if (Player.Dead.Active)
+            {
+                Player.InputMoveVector.Set(Vector2.zero);
+                return;
+            }
 
-		// while there is an active death event, block movement input
-		if (Player.Dead.Active)
-		{
-			Player.InputMoveVector.Set(Vector2.zero);
-			return;
-		}
+            // --- store ground info ---
+            StoreGroundInfo();
 
-		// --- store ground info ---
-		StoreGroundInfo();
+            // --- store head contact info ---
+            // spherecast upwards for some info on the surface touching the top of the collider, if any
+            if (!m_Grounded && (Player.Velocity.Get().y > 0.0f))
+            {
+                Physics.SphereCast(new Ray(Transform.position, Vector3.up),
+                                            Player.Radius.Get(), out m_CeilingHit,
+                                            Player.Height.Get() - (Player.Radius.Get() - SkinWidth) + 0.01f,
+                                            vp_Layer.Mask.ExternalBlockers);
+                m_HeadContact = (m_CeilingHit.collider != null);
+            }
+            else
+                m_HeadContact = false;
 
-		// --- store head contact info ---
-		// spherecast upwards for some info on the surface touching the top of the collider, if any
-		if (!m_Grounded && (Player.Velocity.Get().y > 0.0f))
-		{
-			Physics.SphereCast(new Ray(Transform.position, Vector3.up),
-										Player.Radius.Get(), out m_CeilingHit,
-										Player.Height.Get() - (Player.Radius.Get() - SkinWidth) + 0.01f,
-										vp_Layer.Mask.ExternalBlockers);
-			m_HeadContact = (m_CeilingHit.collider != null);
-		}
-		else
-			m_HeadContact = false;
+            // --- handle loss of grounding ---
+            if ((m_GroundHitTransform == null) && (m_LastGroundHitTransform != null))
+            {
 
-		// --- handle loss of grounding ---
-		if ((m_GroundHitTransform == null) && (m_LastGroundHitTransform != null))
-		{
-			
-			// if we lost contact with a moving object, inherit its speed
-			// then forget about it
-			if (m_Platform != null && PositionOnPlatform != Vector3.zero)
-			{
-				AddForce(m_Platform.position - m_LastPlatformPos);
-				m_Platform = null;
-			}
+                // if we lost contact with a moving object, inherit its speed
+                // then forget about it
+                if (m_Platform != null && PositionOnPlatform != Vector3.zero)
+                {
+                    AddForce(m_Platform.position - m_LastPlatformPos);
+                    m_Platform = null;
+                }
 
-			// undo anti-bump offset to make the fall smoother
-			if (m_CurrentAntiBumpOffset != 0.0f)
-			{
-				Player.Move.Send(vp_MathUtility.NaNSafeVector3(m_CurrentAntiBumpOffset * Vector3.up) * Delta * Time.timeScale);
-				m_PredictedPos += vp_MathUtility.NaNSafeVector3(m_CurrentAntiBumpOffset * Vector3.up) * Delta * Time.timeScale;
-				m_MoveDirection += m_CurrentAntiBumpOffset * Vector3.up;
-			}
+                // undo anti-bump offset to make the fall smoother
+                if (m_CurrentAntiBumpOffset != 0.0f)
+                {
+                    Player.Move.Send(vp_MathUtility.NaNSafeVector3(m_CurrentAntiBumpOffset * Vector3.up) * Delta * Time.timeScale);
+                    m_PredictedPos += vp_MathUtility.NaNSafeVector3(m_CurrentAntiBumpOffset * Vector3.up) * Delta * Time.timeScale;
+                    m_MoveDirection += m_CurrentAntiBumpOffset * Vector3.up;
+                }
 
-		}
+            }
 
-
+        }
+        else
+        {
+            base.Stop();
+        }
 	}
 	
 
