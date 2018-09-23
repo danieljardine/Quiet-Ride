@@ -7,6 +7,7 @@ TagManager:
   - Door
   - ToLookout
   - Drink
+  - Sign
   layers:
   - Default
   - TransparentFX

@@ -9,12 +9,15 @@ EditorBuildSettings:
     path: Assets/Scenes/Room.unity
     guid: 99c9720ab356a0642a771bea13969a05
   - enabled: 1
-    path: Assets/Scenes/DriveIn.unity
-    guid: 09e5837d241427b4b8778bcc6cbeff26
+    path: Assets/Scenes/DriveThrough.unity
+    guid: a3b0393f99406dc4897c99d05d8258e9
   - enabled: 1
     path: Assets/Scenes/PreLookout.unity
     guid: e821e318d01830e439a73289ba5987de
   - enabled: 1
     path: Assets/Scenes/Lookout.unity
     guid: f94dcf1f6f4266c419dc07dd6c18405e
+  - enabled: 0
+    path: Assets/Scenes/OldDriveIn.unity
+    guid: 09e5837d241427b4b8778bcc6cbeff26
   m_configObjects: {}
