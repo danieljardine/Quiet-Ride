@@ -10,6 +10,7 @@ public class GameManager : MonoBehaviour {
 
     public Image introScreen;
     vp_Input control;
+    private RaycastHit hit;
 
     // Use this for initialization
     void Start () {
@@ -25,13 +26,24 @@ public class GameManager : MonoBehaviour {
     }
     private void CheckRayCast()
     {
-        Ray ray = Camera.main.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0));
-        RaycastHit data;
-        if (Physics.Raycast(ray, out data, DoorDistance))
+        // Ray ray = Camera.main.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0));
+        // RaycastHit data;
+        // if (Physics.Raycast(ray, out data, DoorDistance))
+        Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+        RaycastHit hit;
+        if (Physics.Raycast(ray, out hit, DoorDistance))
+            if (hit.transform.tag == "Door")
+            {
+                StartCoroutine(RoomSceneTransition());
+            }
+        if (Physics.Raycast(ray, out hit, 1000f))
         {
-            StartCoroutine(RoomSceneTransition());
-
+            if (hit.transform.tag == "Drink")
+            {
+                StartCoroutine(DriveInTransition());
+            }
         }
+ 
     }
     IEnumerator RoomSceneTransition()
     {
@@ -46,8 +58,21 @@ public class GameManager : MonoBehaviour {
             Debug.Log("Engine start");
             yield return new WaitForSeconds(0.5f);
             SceneManager.LoadScene("DriveIn");
-
-            transform.position = new Vector3(1.551f, 1.5f, -1.565f);
+           // transform.position = new Vector3(1.551f, 1.5f, -1.565f);
+            yield break;
+        }
+    }
+    IEnumerator DriveInTransition()
+    {
+        while (true)
+        {
+            Fade();
+            yield return new WaitForSeconds(0.5f);
+            Debug.Log("Drink sip");
+            yield return new WaitForSeconds(0.5f);
+            Debug.Log("Car speeds up");
+            yield return new WaitForSeconds(0.5f);
+            SceneManager.LoadScene("PreLookout");
             yield break;
         }
     }
@@ -55,5 +80,8 @@ public class GameManager : MonoBehaviour {
     {
         introScreen.CrossFadeAlpha(255f, 1f, false);
     }
-
+    void Awake()
+    {
+        DontDestroyOnLoad(this.gameObject);
+    }
 }

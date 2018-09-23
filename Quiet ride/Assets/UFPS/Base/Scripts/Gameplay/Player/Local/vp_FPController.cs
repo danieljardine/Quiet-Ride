@@ -552,8 +552,6 @@ public class vp_FPController : vp_CharacterController
 	/// </summary>
 	protected override void FixedMove()
 	{
-        if (movement == true)
-        {
             // --- apply forces ---
             m_MoveDirection = Vector3.zero;
             m_MoveDirection += m_ExternalForce;
@@ -629,12 +627,6 @@ public class vp_FPController : vp_CharacterController
                 }
 
             }
-
-        }
-        else
-        {
-            base.Stop();
-        }
 	}
 	
 
